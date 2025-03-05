@@ -1,0 +1,90 @@
+# Import necessary libraries
+import numpy as np
+import pandas as pd
+import re
+import nltk
+import matplotlib.pyplot as plt
+import seaborn as sns
+from nltk.corpus import stopwords
+from sklearn.model_selection import train_test_split
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import accuracy_score, classification_report, confusion_matrix
+
+# Download stopwords
+nltk.download('stopwords')
+
+# Sample dataset (Amazon customer reviews)
+data = {
+    'Review': [
+        "I love this product! It's amazing and works perfectly.",
+        "Terrible quality. I regret buying it.",
+        "Best purchase ever. Highly recommend!",
+        "Not worth the price. Very disappointed.",
+        "Absolutely fantastic! Will buy again.",
+        "Horrible experience. Customer service was awful.",
+        "Great value for money. Exceeded expectations.",
+        "Worst thing I've ever bought. Do not recommend!",
+        "Good product, but shipping was slow.",
+        "Excellent quality. Very satisfied!"
+    ],
+    'Sentiment': [1, 0, 1, 0, 1, 0, 1, 0, 1, 1]  # 1 = Positive, 0 = Negative
+}
+
+# Convert dataset into a DataFrame
+df = pd.DataFrame(data)
+
+# Display the dataset
+print("Dataset:")
+print(df)
+
+# Text preprocessing function
+def preprocess_text(text):
+    text = text.lower()  # Convert to lowercase
+    text = re.sub(r'[^\w\s]', '', text)  # Remove punctuation
+    text = text.strip()  # Remove leading/trailing spaces
+    text = " ".join([word for word in text.split() if word not in stopwords.words('english')])  # Remove stopwords
+    return text
+
+# Apply preprocessing
+df['Cleaned_Review'] = df['Review'].apply(preprocess_text)
+
+# Splitting data into training (80%) and testing (20%) sets
+X_train, X_test, y_train, y_test = train_test_split(df['Cleaned_Review'], df['Sentiment'], test_size=0.2, random_state=42)
+
+# Convert text to TF-IDF features
+vectorizer = TfidfVectorizer()
+X_train_tfidf = vectorizer.fit_transform(X_train)
+X_test_tfidf = vectorizer.transform(X_test)
+
+# Train a Logistic Regression model
+model = LogisticRegression()
+model.fit(X_train_tfidf, y_train)
+
+# Predict sentiment on test data
+y_pred = model.predict(X_test_tfidf)
+
+# Model accuracy
+accuracy = accuracy_score(y_test, y_pred)
+print(f"\nModel Accuracy: {accuracy:.2f}")
+
+# Display classification report
+print("\nClassification Report:\n", classification_report(y_test, y_pred))
+
+# Confusion matrix visualization
+plt.figure(figsize=(6, 4))
+sns.heatmap(confusion_matrix(y_test, y_pred), annot=True, fmt="d", cmap="Blues", xticklabels=["Negative", "Positive"], yticklabels=["Negative", "Positive"])
+plt.xlabel("Predicted")
+plt.ylabel("Actual")
+plt.title("Confusion Matrix")
+plt.show()
+
+# Test the model with a new review
+new_reviews = ["This product is awesome!", "I hate this, worst purchase ever."]
+new_reviews_cleaned = [preprocess_text(review) for review in new_reviews]
+new_reviews_tfidf = vectorizer.transform(new_reviews_cleaned)
+predictions = model.predict(new_reviews_tfidf)
+
+# Print predictions
+for review, sentiment in zip(new_reviews, predictions):
+    print(f"Review: '{review}' -> Sentiment: {'Positive' if sentiment == 1 else 'Negative'}")
